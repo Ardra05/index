@@ -1,36 +1,520 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Meeting Intelligence Hub</title>
-    <style>
-        body { font-family: Arial; margin: 20px; }
-        .container { max-width: 900px; margin: auto; }
-        textarea { width: 100%; height: 150px; margin-top: 10px; }
-        button { padding: 10px; margin-top: 10px; }
-        #chatBox { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; }
-    </style>
+<meta charset="UTF-8">
+<title>MeetingIQ</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f5f5f0; color: #1a1a1a; font-size: 14px; line-height: 1.6; min-height: 100vh; }
+  .app { display: flex; height: 100vh; overflow: hidden; }
+  .sidebar { width: 220px; min-width: 220px; background: #ffffff; border-right: 0.5px solid #e0e0d8; display: flex; flex-direction: column; padding: 16px 0; }
+  .sidebar-logo { padding: 0 16px 16px; border-bottom: 0.5px solid #e0e0d8; margin-bottom: 12px; }
+  .sidebar-logo h1 { font-size: 15px; font-weight: 600; color: #1a1a1a; }
+  .sidebar-logo p { font-size: 11px; color: #888; margin-top: 2px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px; cursor: pointer; font-size: 13px; color: #666; transition: background 0.15s; }
+  .nav-item:hover { background: #f5f5f0; color: #1a1a1a; }
+  .nav-item.active { background: #f5f5f0; color: #1a1a1a; font-weight: 500; border-right: 2px solid #1a1a1a; }
+  .main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+  .topbar { background: #ffffff; border-bottom: 0.5px solid #e0e0d8; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .content { padding: 24px; flex: 1; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .card { background: #ffffff; border: 0.5px solid #e0e0d8; border-radius: 12px; padding: 20px; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border: 0.5px solid #ccc; border-radius: 8px; background: transparent; cursor: pointer; font-size: 13px; color: #1a1a1a; font-family: inherit; transition: background 0.15s; }
+  .btn:hover { background: #f5f5f0; }
+  .btn.primary { background: #1a1a1a; color: #ffffff; border-color: #1a1a1a; }
+  .btn.primary:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 500; }
+  .badge-blue { background: #e6f1fb; color: #185fa5; }
+  .badge-green { background: #eaf3de; color: #3b6d11; }
+  .badge-yellow { background: #faeeda; color: #854f0b; }
+  .upload-zone { border: 1.5px dashed #ccc; border-radius: 12px; padding: 48px 24px; text-align: center; background: #fafafa; }
+  .upload-zone h3 { font-size: 15px; font-weight: 500; margin-bottom: 6px; }
+  .upload-zone p { font-size: 13px; color: #888; margin-bottom: 16px; }
+  .upload-zone.drag { border-color: #1a1a1a; background: #f5f5f0; }
+  .transcript-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: #ffffff; border: 0.5px solid #e0e0d8; border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s; }
+  .transcript-card:hover { border-color: #aaa; }
+  .transcript-card.selected { border-color: #1a1a1a; background: #f5f5f0; }
+  .tc-icon { font-size: 20px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: #f5f5f0; border-radius: 8px; }
+  .tc-info { flex: 1; }
+  .tc-name { font-size: 13px; font-weight: 500; }
+  .tc-meta { font-size: 11px; color: #888; margin-top: 2px; }
+  .stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .stat-card { background: #f5f5f0; border-radius: 8px; padding: 16px; }
+  .stat-label { font-size: 11px; color: #888; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .stat-value { font-size: 24px; font-weight: 500; }
+  .table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .table th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 500; color: #888; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 0.5px solid #e0e0d8; }
+  .table td { padding: 10px 12px; border-bottom: 0.5px solid #e0e0d8; vertical-align: top; }
+  .table tr:last-child td { border-bottom: none; }
+  .chat-container { display: flex; flex-direction: column; height: 420px; }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .chat-msg { max-width: 85%; }
+  .chat-msg.user { align-self: flex-end; }
+  .chat-msg.ai { align-self: flex-start; }
+  .chat-bubble { padding: 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.5; }
+  .chat-msg.user .chat-bubble { background: #1a1a1a; color: #ffffff; }
+  .chat-msg.ai .chat-bubble { background: #f5f5f0; border: 0.5px solid #e0e0d8; }
+  .chat-citation { font-size: 11px; color: #888; margin-top: 4px; padding: 0 4px; }
+  .chat-input-row { display: flex; gap: 8px; padding: 12px 16px; border-top: 0.5px solid #e0e0d8; }
+  .chat-input-row input { flex: 1; padding: 9px 12px; border: 0.5px solid #ccc; border-radius: 8px; background: #f5f5f0; font-family: inherit; font-size: 13px; color: #1a1a1a; outline: none; }
+  .chat-input-row input:focus { border-color: #1a1a1a; }
+  .sentiment-bar { height: 28px; border-radius: 4px; display: flex; overflow: hidden; gap: 2px; margin-bottom: 4px; }
+  .sent-seg { height: 100%; cursor: pointer; transition: opacity 0.15s; border-radius: 2px; }
+  .sent-seg:hover { opacity: 0.75; }
+  .speaker-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 0.5px solid #e0e0d8; }
+  .speaker-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; flex-shrink: 0; }
+  .speaker-bar-track { flex: 1; height: 8px; background: #f5f5f0; border-radius: 99px; overflow: hidden; }
+  .speaker-bar-fill { height: 100%; border-radius: 99px; transition: width 0.5s; }
+  .tabs { display: flex; border-bottom: 0.5px solid #e0e0d8; margin-bottom: 20px; }
+  .tab { padding: 10px 20px; cursor: pointer; font-size: 13px; color: #888; border-bottom: 2px solid transparent; transition: all 0.15s; }
+  .tab:hover { color: #1a1a1a; }
+  .tab.active { color: #1a1a1a; border-bottom-color: #1a1a1a; font-weight: 500; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .loading-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #e0e0d8; border-top-color: #1a1a1a; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty-state { text-align: center; padding: 48px 24px; color: #888; }
+  .empty-state h3 { font-size: 15px; color: #1a1a1a; margin-bottom: 6px; margin-top: 12px; }
+  .error-msg { background: #fcebeb; color: #a32d2d; padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-top: 8px; line-height: 1.6; }
+  .keyword-cloud { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px; }
+  .keyword-tag { padding: 4px 12px; border-radius: 99px; font-size: 12px; background: #f5f5f0; border: 0.5px solid #e0e0d8; color: #666; }
+  .progress-bar { height: 4px; background: #f5f5f0; border-radius: 99px; overflow: hidden; margin-top: 4px; }
+  .progress-fill { height: 100%; background: #1a1a1a; border-radius: 99px; transition: width 0.3s; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media(max-width:700px) { .stats-grid { grid-template-columns: 1fr 1fr; } .two-col { grid-template-columns: 1fr; } .sidebar { width: 52px; min-width: 52px; } .nav-item span { display: none; } }
+</style>
 </head>
 <body>
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <h1>MeetingIQ</h1>
+      <p>Intelligence Hub</p>
+    </div>
+    <div class="nav-item active" id="nav-dashboard" onclick="navigate('dashboard')"><span class="nav-icon">⊞</span><span>Dashboard</span></div>
+    <div class="nav-item" id="nav-upload" onclick="navigate('upload')"><span class="nav-icon">↑</span><span>Upload</span></div>
+    <div class="nav-item" id="nav-extractions" onclick="navigate('extractions')"><span class="nav-icon">◈</span><span>Extractions</span></div>
+    <div class="nav-item" id="nav-chat" onclick="navigate('chat')"><span class="nav-icon">◎</span><span>Ask Anything</span></div>
+    <div class="nav-item" id="nav-sentiment" onclick="navigate('sentiment')"><span class="nav-icon">≋</span><span>Sentiment</span></div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div id="topbar-title" style="font-size:16px;font-weight:500;">Dashboard</div>
+        <div id="topbar-sub" style="font-size:12px;color:#888;margin-top:1px;">Overview of all uploaded meetings</div>
+      </div>
+      <button class="btn primary" onclick="navigate('upload')">+ Upload Transcript</button>
+    </div>
+    <div class="content">
 
-<div class="container">
-    <h1>📊 Meeting Intelligence Hub</h1>
+      <div class="page active" id="page-dashboard">
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-label">Transcripts</div><div class="stat-value" id="stat-transcripts">0</div></div>
+          <div class="stat-card"><div class="stat-label">Action Items</div><div class="stat-value" id="stat-actions">0</div></div>
+          <div class="stat-card"><div class="stat-label">Decisions</div><div class="stat-value" id="stat-decisions">0</div></div>
+          <div class="stat-card"><div class="stat-label">Avg Sentiment</div><div class="stat-value" id="stat-sentiment">—</div></div>
+        </div>
+        <div class="card" id="dashboard-list">
+          <div class="empty-state"><div style="font-size:32px;">📋</div><h3>No meetings yet</h3><p>Upload your first transcript to get started</p></div>
+        </div>
+      </div>
 
-    <!-- Upload -->
-    <h3>Upload Transcript</h3>
-    <input type="file" id="fileInput">
-    <textarea id="transcript" placeholder="Transcript will appear here..."></textarea>
+      <div class="page" id="page-upload">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="upload-zone" id="upload-zone">
+            <div style="font-size:32px;margin-bottom:12px;">📂</div>
+            <h3>Drop transcripts here</h3>
+            <p>Supports .txt and .vtt files · Multiple files allowed</p>
+            <button class="btn primary" id="browse-btn">Browse Files</button>
+            <input type="file" id="file-input" multiple accept=".txt,.vtt" style="display:none">
+          </div>
+          <div id="upload-error"></div>
+          <div id="upload-progress" style="margin-top:12px;"></div>
+        </div>
+        <div id="uploaded-list"></div>
+      </div>
 
-    <!-- Extract -->
-    <button onclick="extractData()">Extract Decisions & Actions</button>
-    <div id="result"></div>
+      <div class="page" id="page-extractions">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <div style="font-size:13px;color:#888;">Select a transcript to extract decisions and action items</div>
+          <button class="btn" id="export-btn" disabled>Export CSV</button>
+        </div>
+        <div id="ext-transcript-list" style="margin-bottom:16px;"></div>
+        <div id="ext-loading" style="display:none;text-align:center;padding:32px;">
+          <div class="loading-spinner"></div>
+          <div style="margin-top:10px;font-size:12px;color:#888;">Analysing with AI — please wait...</div>
+        </div>
+        <div id="ext-results"></div>
+      </div>
 
-    <!-- Chat -->
-    <h3>Chatbot</h3>
-    <div id="chatBox"></div>
-    <input type="text" id="userInput" placeholder="Ask a question...">
-    <button onclick="sendMessage()">Send</button>
+      <div class="page" id="page-chat">
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div style="padding:16px;border-bottom:0.5px solid #e0e0d8;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-size:13px;font-weight:500;">Contextual Query Engine</div>
+              <div style="font-size:11px;color:#888;margin-top:2px;" id="chat-context-label">No transcripts loaded</div>
+            </div>
+            <button class="btn" id="clear-chat-btn">Clear</button>
+          </div>
+          <div class="chat-container">
+            <div class="chat-messages" id="chat-messages">
+              <div class="chat-msg ai"><div class="chat-bubble">Hello! Ask me anything about your uploaded meeting transcripts.</div></div>
+            </div>
+            <div class="chat-input-row">
+              <input type="text" id="chat-input" placeholder="Ask a question about your meetings…">
+              <button class="btn primary" id="chat-send-btn">Ask</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page" id="page-sentiment">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+          <div style="font-size:13px;color:#888;">Select a transcript:</div>
+          <select id="sentiment-select" style="padding:7px 10px;border:0.5px solid #ccc;border-radius:8px;background:#f5f5f0;font-family:inherit;font-size:13px;color:#1a1a1a;">
+            <option value="">— choose —</option>
+          </select>
+          <div id="sent-loading" style="display:none;"><div class="loading-spinner"></div></div>
+        </div>
+        <div id="sentiment-results"></div>
+      </div>
+
+    </div>
+  </div>
 </div>
 
-<script src="app.js"></script>
+<script>
+var transcripts = [];
+var extractions = {};
+var sentimentData = {};
+var chatHistory = [];
+var selectedExtIdx = null;
+
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+  document.getElementById('page-' + page).classList.add('active');
+  document.getElementById('nav-' + page).classList.add('active');
+  var titles = { dashboard:'Dashboard', upload:'Upload Transcripts', extractions:'Decision & Action Extractor', chat:'Ask Anything', sentiment:'Sentiment Analysis' };
+  var subs = { dashboard:'Overview of all uploaded meetings', upload:'Upload .txt or .vtt transcript files', extractions:'AI-powered extraction of decisions and action items', chat:'Ask natural language questions across all transcripts', sentiment:'Speaker and segment tone analysis' };
+  document.getElementById('topbar-title').textContent = titles[page];
+  document.getElementById('topbar-sub').textContent = subs[page];
+  if (page === 'extractions') renderExtTranscriptList();
+  if (page === 'dashboard') renderDashboard();
+  if (page === 'chat') updateChatContext();
+  if (page === 'sentiment') updateSentimentSelect();
+}
+
+document.getElementById('browse-btn').addEventListener('click', function() {
+  document.getElementById('file-input').click();
+});
+document.getElementById('file-input').addEventListener('change', function() {
+  handleFiles(this.files);
+});
+var zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('drag'); });
+zone.addEventListener('dragleave', function() { zone.classList.remove('drag'); });
+zone.addEventListener('drop', function(e) { e.preventDefault(); zone.classList.remove('drag'); handleFiles(e.dataTransfer.files); });
+
+function handleFiles(files) {
+  var allowed = ['.txt', '.vtt'];
+  var errorDiv = document.getElementById('upload-error');
+  errorDiv.innerHTML = '';
+  Array.from(files).forEach(function(file) {
+    var ext = '.' + file.name.split('.').pop().toLowerCase();
+    if (allowed.indexOf(ext) === -1) {
+      errorDiv.innerHTML = '<div class="error-msg">Unsupported file: ' + file.name + '. Only .txt and .vtt files are allowed.</div>';
+      return;
+    }
+    if (transcripts.find(function(t) { return t.name === file.name; })) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var text = e.target.result;
+      var cleaned = ext === '.vtt' ? parseVTT(text) : text;
+      var words = cleaned.split(/\s+/).filter(Boolean).length;
+      var speakers = extractSpeakers(cleaned);
+      transcripts.push({ name: file.name, raw: cleaned, words: words, speakers: speakers, date: new Date().toLocaleDateString(), ext: ext });
+      renderUploadedList();
+      renderDashboard();
+      updateSentimentSelect();
+    };
+    reader.readAsText(file);
+  });
+  showUploadProgress(files.length);
+}
+
+function parseVTT(text) {
+  return text.replace(/WEBVTT[\s\S]*?\n\n/, '').replace(/\d+\n[\d:.,\s-->]+\n/g, '').replace(/<[^>]+>/g, '').trim();
+}
+
+function extractSpeakers(text) {
+  var matches = text.match(/^([A-Z][A-Za-z\s]+):/gm) || [];
+  var unique = [];
+  matches.forEach(function(m) {
+    var name = m.replace(':', '').trim();
+    if (unique.indexOf(name) === -1) unique.push(name);
+  });
+  return unique.slice(0, 10);
+}
+
+function showUploadProgress(n) {
+  var p = document.getElementById('upload-progress');
+  p.innerHTML = '<div style="font-size:12px;color:#888;margin-bottom:4px;">Uploading ' + n + ' file(s)...</div><div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>';
+  var w = 0;
+  var iv = setInterval(function() {
+    w = Math.min(w + 20, 100);
+    var fill = document.getElementById('prog-fill');
+    if (fill) fill.style.width = w + '%';
+    if (w >= 100) { clearInterval(iv); setTimeout(function() { p.innerHTML = ''; }, 800); }
+  }, 80);
+}
+
+function renderUploadedList() {
+  var c = document.getElementById('uploaded-list');
+  if (!transcripts.length) { c.innerHTML = ''; return; }
+  var html = '<div style="font-size:13px;font-weight:500;margin-bottom:10px;">Uploaded Transcripts</div>';
+  transcripts.forEach(function(t) {
+    html += '<div class="transcript-card"><div class="tc-icon">' + (t.ext==='.vtt'?'🎬':'📄') + '</div><div class="tc-info"><div class="tc-name">' + t.name + '</div><div class="tc-meta">' + t.date + ' · ' + t.words.toLocaleString() + ' words · ' + t.speakers.length + ' speaker(s)</div></div><span class="badge badge-green">Uploaded</span></div>';
+  });
+  c.innerHTML = html;
+}
+
+function renderDashboard() {
+  document.getElementById('stat-transcripts').textContent = transcripts.length;
+  var totalActions = 0, totalDecisions = 0;
+  Object.values(extractions).forEach(function(e) { totalActions += (e.actions||[]).length; totalDecisions += (e.decisions||[]).length; });
+  document.getElementById('stat-actions').textContent = totalActions;
+  document.getElementById('stat-decisions').textContent = totalDecisions;
+  var sentVals = Object.values(sentimentData).map(function(s) { return s.overall; });
+  document.getElementById('stat-sentiment').textContent = sentVals.length ? (sentVals.reduce(function(a,b){return a+b;},0)/sentVals.length).toFixed(1)+'/5' : '—';
+  var list = document.getElementById('dashboard-list');
+  if (!transcripts.length) { list.innerHTML = '<div class="empty-state"><div style="font-size:32px;">📋</div><h3>No meetings yet</h3><p>Upload your first transcript to get started</p></div>'; return; }
+  var html = '<div style="font-size:13px;font-weight:500;margin-bottom:12px;">Recent Meetings</div><table class="table"><thead><tr><th>File</th><th>Date</th><th>Words</th><th>Speakers</th><th>Status</th></tr></thead><tbody>';
+  transcripts.forEach(function(t,i) {
+    html += '<tr><td style="font-weight:500;">' + t.name + '</td><td>' + t.date + '</td><td>' + t.words.toLocaleString() + '</td><td>' + t.speakers.length + '</td><td>' + (extractions[i]?'<span class="badge badge-green">Analysed</span>':'<span class="badge badge-yellow">Pending</span>') + '</td></tr>';
+  });
+  html += '</tbody></table>';
+  list.innerHTML = html;
+}
+
+function renderExtTranscriptList() {
+  var c = document.getElementById('ext-transcript-list');
+  if (!transcripts.length) { c.innerHTML = '<div class="empty-state"><div style="font-size:32px;">↑</div><h3>No transcripts uploaded</h3><p>Go to Upload to add some</p></div>'; return; }
+  var html = '';
+  transcripts.forEach(function(t,i) {
+    html += '<div class="transcript-card ' + (selectedExtIdx===i?'selected':'') + '" data-idx="' + i + '"><div class="tc-icon">' + (t.ext==='.vtt'?'🎬':'📄') + '</div><div class="tc-info"><div class="tc-name">' + t.name + '</div><div class="tc-meta">' + t.words.toLocaleString() + ' words · ' + t.speakers.length + ' speaker(s)</div></div>' + (extractions[i]?'<span class="badge badge-green">Done</span>':'<button class="btn" style="font-size:12px;padding:5px 10px;" data-extract="'+i+'">Extract</button>') + '</div>';
+  });
+  c.innerHTML = html;
+  c.querySelectorAll('.transcript-card').forEach(function(card) {
+    card.addEventListener('click', function() { selectTranscript(parseInt(card.dataset.idx)); });
+  });
+  c.querySelectorAll('[data-extract]').forEach(function(btn) {
+    btn.addEventListener('click', function(e) { e.stopPropagation(); runExtraction(parseInt(btn.dataset.extract)); });
+  });
+}
+
+document.getElementById('export-btn').addEventListener('click', function() { exportCSV(); });
+
+function selectTranscript(i) {
+  selectedExtIdx = i;
+  renderExtTranscriptList();
+  if (extractions[i]) renderExtractionResults(i);
+  else runExtraction(i);
+}
+
+async function runExtraction(i) {
+  selectedExtIdx = i;
+  renderExtTranscriptList();
+  document.getElementById('ext-loading').style.display = 'block';
+  document.getElementById('ext-results').innerHTML = '';
+  var t = transcripts[i];
+  var snippet = t.raw.slice(0, 4000);
+  var prompt = 'Analyze this meeting transcript and return a JSON object.\n\nReturn ONLY this JSON structure with no other text, no markdown, no backticks:\n{"decisions":[{"title":"short decision title","context":"brief context"}],"actions":[{"who":"person name","what":"what they need to do","by_when":"deadline or TBD"}],"keywords":["topic1","topic2","topic3","topic4","topic5"]}\n\nIf there are no decisions use empty array. If no actions use empty array.\n\nTranscript:\n' + snippet;
+  try {
+    var res = await callAI(prompt);
+    var json = parseJSON(res);
+    extractions[i] = json;
+    document.getElementById('export-btn').disabled = false;
+    renderExtractionResults(i);
+    renderDashboard();
+    renderExtTranscriptList();
+  } catch(e) {
+    document.getElementById('ext-results').innerHTML = '<div class="error-msg"><strong>Error:</strong> ' + e.message + '</div>';
+  }
+  document.getElementById('ext-loading').style.display = 'none';
+}
+
+function renderExtractionResults(i) {
+  var d = extractions[i];
+  if (!d) return;
+  var decisionsHTML = (d.decisions||[]).length
+    ? '<table class="table"><thead><tr><th>#</th><th>Decision</th><th>Context</th></tr></thead><tbody>' + (d.decisions||[]).map(function(dec,j){ return '<tr><td style="color:#888">'+(j+1)+'</td><td style="font-weight:500">'+dec.title+'</td><td style="color:#888">'+dec.context+'</td></tr>'; }).join('') + '</tbody></table>'
+    : '<div class="empty-state"><h3>No decisions found</h3><p>No clear decisions detected in this transcript</p></div>';
+  var actionsHTML = (d.actions||[]).length
+    ? '<table class="table"><thead><tr><th>Who</th><th>What</th><th>By When</th></tr></thead><tbody>' + (d.actions||[]).map(function(a){ return '<tr><td><span class="badge badge-blue">'+(a.who||'—')+'</span></td><td>'+a.what+'</td><td style="color:#888">'+(a.by_when||'TBD')+'</td></tr>'; }).join('') + '</tbody></table>'
+    : '<div class="empty-state"><h3>No action items found</h3><p>No assigned tasks detected in this transcript</p></div>';
+  var keywordsHTML = (d.keywords||[]).length
+    ? '<div class="keyword-cloud">' + (d.keywords||[]).map(function(k){ return '<span class="keyword-tag">'+k+'</span>'; }).join('') + '</div>'
+    : '<div class="empty-state"><h3>No keywords found</h3></div>';
+  document.getElementById('ext-results').innerHTML =
+    '<div class="tabs"><div class="tab active" id="tab-btn-decisions">Decisions ('+(d.decisions||[]).length+')</div><div class="tab" id="tab-btn-actions">Action Items ('+(d.actions||[]).length+')</div><div class="tab" id="tab-btn-keywords">Topics ('+(d.keywords||[]).length+')</div></div>' +
+    '<div class="tab-content active" id="tab-decisions">' + decisionsHTML + '</div>' +
+    '<div class="tab-content" id="tab-actions">' + actionsHTML + '</div>' +
+    '<div class="tab-content" id="tab-keywords">' + keywordsHTML + '</div>';
+  document.getElementById('tab-btn-decisions').addEventListener('click', function(){ switchTab('decisions'); });
+  document.getElementById('tab-btn-actions').addEventListener('click', function(){ switchTab('actions'); });
+  document.getElementById('tab-btn-keywords').addEventListener('click', function(){ switchTab('keywords'); });
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  document.querySelectorAll('.tab-content').forEach(function(t){ t.classList.remove('active'); });
+  document.getElementById('tab-btn-' + name).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+function exportCSV() {
+  if (selectedExtIdx === null || !extractions[selectedExtIdx]) return;
+  var d = extractions[selectedExtIdx];
+  var csv = 'Type,Field1,Field2,Field3\n';
+  (d.decisions||[]).forEach(function(dec){ csv += 'Decision,"'+(dec.title||'')+'","'+(dec.context||'')+'",""\n'; });
+  (d.actions||[]).forEach(function(a){ csv += 'Action,"'+(a.who||'')+'","'+(a.what||'')+'","'+(a.by_when||'TBD')+'"\n'; });
+  var blob = new Blob([csv], {type:'text/csv'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a'); a.href=url; a.download='extractions.csv'; a.click();
+}
+
+function updateChatContext() {
+  var label = document.getElementById('chat-context-label');
+  label.textContent = transcripts.length ? transcripts.length+' transcript(s) loaded — ready to query' : 'No transcripts loaded — upload some first';
+}
+
+document.getElementById('chat-send-btn').addEventListener('click', function() { sendChat(); });
+document.getElementById('chat-input').addEventListener('keydown', function(e) { if (e.key==='Enter') sendChat(); });
+document.getElementById('clear-chat-btn').addEventListener('click', function() { clearChat(); });
+
+async function sendChat() {
+  var input = document.getElementById('chat-input');
+  var q = input.value.trim();
+  if (!q) return;
+  if (!transcripts.length) { appendMsg('ai','Please upload some transcripts first!',null); return; }
+  input.value = '';
+  appendMsg('user', q, null);
+  var btn = document.getElementById('chat-send-btn');
+  btn.disabled = true; btn.textContent = '...';
+  var ctx = transcripts.map(function(t,i){ return '[Meeting '+(i+1)+': '+t.name+']\n'+t.raw.slice(0,2000); }).join('\n\n---\n\n');
+  var prompt = 'You are a meeting assistant. Answer the question based ONLY on these meeting transcripts. Cite your source like [Meeting 1: filename].\n\nTranscripts:\n'+ctx+'\n\nQuestion: '+q;
+  try {
+    var res = await callAI(prompt);
+    chatHistory.push({role:'user',content:q});
+    chatHistory.push({role:'assistant',content:res});
+    var citMatch = res.match(/\[Meeting \d+:[^\]]+\]/g);
+    var mainText = res.replace(/\[Meeting \d+:[^\]]+\]/g,'').trim();
+    appendMsg('ai', mainText, citMatch ? citMatch.join(' · ') : null);
+  } catch(e) {
+    appendMsg('ai','Error: '+e.message,null);
+  }
+  btn.disabled = false; btn.textContent = 'Ask';
+}
+
+function appendMsg(role, text, citation) {
+  var msgs = document.getElementById('chat-messages');
+  var div = document.createElement('div');
+  div.className = 'chat-msg '+role;
+  div.innerHTML = '<div class="chat-bubble">'+text+'</div>'+(citation?'<div class="chat-citation">Source: '+citation+'</div>':'');
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function clearChat() {
+  chatHistory = [];
+  document.getElementById('chat-messages').innerHTML = '<div class="chat-msg ai"><div class="chat-bubble">Chat cleared. Ask me anything about your uploaded transcripts!</div></div>';
+}
+
+function updateSentimentSelect() {
+  var sel = document.getElementById('sentiment-select');
+  var html = '<option value="">— choose —</option>';
+  transcripts.forEach(function(t,i){ html += '<option value="'+i+'">'+t.name+'</option>'; });
+  sel.innerHTML = html;
+}
+
+document.getElementById('sentiment-select').addEventListener('change', function() { loadSentiment(); });
+
+async function loadSentiment() {
+  var sel = document.getElementById('sentiment-select');
+  var i = sel.value;
+  if (i==='') { document.getElementById('sentiment-results').innerHTML=''; return; }
+  var idx = parseInt(i);
+  if (sentimentData[idx]) { renderSentiment(idx); return; }
+  document.getElementById('sent-loading').style.display = 'inline-block';
+  document.getElementById('sentiment-results').innerHTML = '';
+  var t = transcripts[idx];
+  var snippet = t.raw.slice(0, 4000);
+  var prompt = 'Analyze the sentiment of this meeting transcript and return a JSON object.\n\nReturn ONLY this JSON structure with no other text, no markdown, no backticks:\n{"overall":3.5,"summary":"one or two sentence summary of the overall meeting tone","speakers":[{"name":"speaker name","score":3.5,"emotion":"neutral"}],"segments":[{"label":"short segment label","score":4,"sentiment":"positive"}]}\n\nRules:\n- overall: a number from 1.0 to 5.0\n- score: a number from 1.0 to 5.0\n- sentiment must be exactly one of: positive, negative, neutral, conflict, enthusiastic\n- include 4 to 6 segments\n\nTranscript:\n' + snippet;
+  try {
+    var res = await callAI(prompt);
+    sentimentData[idx] = parseJSON(res);
+    renderSentiment(idx);
+    renderDashboard();
+  } catch(e) {
+    document.getElementById('sentiment-results').innerHTML = '<div class="error-msg"><strong>Error:</strong> '+e.message+'</div>';
+  }
+  document.getElementById('sent-loading').style.display = 'none';
+}
+
+function renderSentiment(idx) {
+  var d = sentimentData[idx];
+  if (!d) return;
+  var colorMap = { positive:'#22c55e', enthusiastic:'#3b82f6', neutral:'#94a3b8', negative:'#f87171', conflict:'#ef4444' };
+  var emojiMap = { positive:'😊', enthusiastic:'🔥', neutral:'😐', negative:'😟', conflict:'⚡' };
+  var speakerColors = ['#3b82f6','#22c55e','#f59e0b','#ec4899','#8b5cf6','#06b6d4'];
+  var segsHTML = (d.segments||[]).map(function(s){ return '<div class="sent-seg" style="flex:1;background:'+(colorMap[s.sentiment]||'#94a3b8')+';opacity:0.75;" title="'+s.label+' ('+s.score+'/5)"></div>'; }).join('');
+  var speakersHTML = (d.speakers||[]).map(function(sp,i){
+    var col = speakerColors[i%speakerColors.length];
+    var pct = Math.round(((sp.score||3)/5)*100);
+    var initials = sp.name.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
+    return '<div class="speaker-row"><div class="speaker-avatar" style="background:'+col+'22;color:'+col+'">'+initials+'</div><div style="flex:1"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;"><span style="font-weight:500">'+sp.name+'</span><span style="color:#888">'+(emojiMap[(sp.emotion||'neutral').toLowerCase()]||'😐')+' '+(sp.emotion||'neutral')+' · '+(sp.score||3).toFixed(1)+'/5</span></div><div class="speaker-bar-track"><div class="speaker-bar-fill" style="width:'+pct+'%;background:'+col+'"></div></div></div></div>';
+  }).join('');
+  var legendHTML = ['positive','neutral','negative','conflict','enthusiastic'].map(function(s){ return '<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#888"><div style="width:10px;height:10px;border-radius:2px;background:'+(colorMap[s])+'"></div>'+s+'</div>'; }).join('');
+  var segTableHTML = (d.segments||[]).map(function(s,i){ return '<tr><td style="color:#888">'+(i+1)+'</td><td>'+s.label+'</td><td>'+(emojiMap[s.sentiment]||'😐')+' '+s.sentiment+'</td><td>'+s.score+'/5</td></tr>'; }).join('');
+  document.getElementById('sentiment-results').innerHTML =
+    '<div class="two-col">'+
+    '<div class="card"><div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:#888;margin-bottom:10px;">Meeting Timeline</div><div class="sentiment-bar">'+segsHTML+'</div><div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;">'+legendHTML+'</div><div style="margin-top:16px;padding:12px;background:#f5f5f0;border-radius:8px;font-size:13px;color:#666;line-height:1.5">'+(d.summary||'No summary available.')+'</div></div>'+
+    '<div class="card"><div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:#888;margin-bottom:10px;">Speaker Breakdown</div><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><span style="font-size:13px;color:#888">Overall score</span><span style="font-size:22px;font-weight:500">'+(d.overall||3).toFixed(1)+'<span style="font-size:14px;color:#888">/5</span></span></div>'+speakersHTML+'</div>'+
+    '</div>'+
+    '<div class="card" style="margin-top:16px;"><div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:#888;margin-bottom:12px;">Segment Details</div><table class="table"><thead><tr><th>#</th><th>Segment</th><th>Sentiment</th><th>Score</th></tr></thead><tbody>'+segTableHTML+'</tbody></table></div>';
+}
+
+async function callAI(prompt) {
+  var response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] })
+  });
+  var data = await response.json();
+  if (!response.ok || data.error) {
+    throw new Error(data.error ? data.error.message : 'API error ' + response.status);
+  }
+  var text = (data.content || []).map(function(b){ return b.text||''; }).join('');
+  return text;
+}
+
+function parseJSON(text) {
+  if (!text || text.trim() === '') {
+    throw new Error('AI returned empty response. Check your API key in server.js');
+  }
+  var cleaned = text.replace(/```json/gi,'').replace(/```/g,'').trim();
+  try { return JSON.parse(cleaned); } catch(e) {}
+  var match = cleaned.match(/\{[\s\S]*\}/);
+  if (match) {
+    try { return JSON.parse(match[0]); } catch(e) {}
+    var fixed = match[0].replace(/,\s*}/g,'}').replace(/,\s*]/g,']');
+    try { return JSON.parse(fixed); } catch(e) {}
+  }
+  throw new Error('Could not parse AI response: ' + text.slice(0,150));
+}
+</script>
 </body>
 </html>
